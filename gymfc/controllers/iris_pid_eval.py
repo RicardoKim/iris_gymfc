@@ -124,10 +124,10 @@ class Policy(object):
         pass
 
 class PIDPolicy(Policy):
-    def __init__(self):
-        self.r = [2, 10, 0.005]
-        self.p = [10, 10, 0.005]
-        self.y = [4, 50, 0.0]
+    def __init__(self, r, p, y):
+        self.r = r
+        self.p = p
+        self.y = y
         self.controller = PIDController(pid_roll = self.r, pid_pitch = self.p, pid_yaw =self.y )
 
     def action(self, state, sim_time=0, desired=np.zeros(3), actual=np.zeros(3) ):
@@ -140,22 +140,32 @@ class PIDPolicy(Policy):
 
     def reset(self):
         self.controller = PIDController(pid_roll = self.r, pid_pitch = self.p, pid_yaw = self.y )
+    
+    def last_error(self):
+        print(self.controller.previous_motor_values)
 
-def eval(env, pi):
+def eval(env):
     actuals = []
     desireds = []
+    pi = PIDPolicy([2, 10, 0.005], [10, 10, 0.005], [4, 50, 0.0])
     pi.reset()
     ob = env.reset()
+    step = 0
     while True:
+        if step % 10 == 0:
+            pi = PIDPolicy([2, 10, 0.005], [10, 10, 0.005], [4, 50, 0.0])
+            pi.reset()
         desired = env.omega_target
         actual = env.omega_actual
         # PID only needs to calculate error between desired and actual y_e
         ac = pi.action(ob, env.sim_time, desired, actual)
+        pi.last_error()
         ob, reward, done, info = env.step(ac)
         actuals.append(actual)
         desireds.append(desired)
         if done:
             break
+        step += 1
     env.close()
     return desireds, actuals
 
@@ -164,8 +174,7 @@ def main(env_id, seed):
     rank = MPI.COMM_WORLD.Get_rank()
     workerseed = seed + 1000000 * rank
     env.seed(workerseed)
-    pi = PIDPolicy()
-    desireds, actuals = eval(env, pi)
+    desireds, actuals = eval(env)
     title = "PID Step Response in Environment {}".format(env_id)
     plot_step_response(np.array(desireds), np.array(actuals), title=title)
 

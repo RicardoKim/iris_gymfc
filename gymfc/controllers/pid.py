@@ -45,6 +45,10 @@ class PIDController(object):
         self.previous_motor_values = [self.minthrottle]*4
         self.pid_rpy = [PID(*pid_roll), PID(*pid_pitch), PID(*pid_yaw)]
 
+    def clear(self):
+        for pid in self.pid_rpy:
+            pid.clear()
+
     def calculate_motor_values(self, current_time, sp_rates, gyro_rates):
         rpy_sums = []
         for i in range(3):
